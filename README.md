@@ -1,126 +1,153 @@
-# BikePoint API Data Downloader
+<h1>BikePoint API Data Downloader</h1>
 
-This project retrieves live Santander Cycle hire (BikePoint) data from the **Transport for London (TfL) BikePoint API**, logs execution details, and stores the downloaded data locally as timestamped JSON files.
+<p>This project retrieves live Santander Cycle hire (BikePoint) data from the <strong>Transport for London (TfL) BikePoint API</strong>, logs execution details, stores the downloaded data locally as timestamped JSON files, and optionally uploads them to an S3 bucket.</p>
 
-It is based on the public TfL BikePoint API and references the following GitHub repository:  
-https://github.com/harveyjoyce/bikepoint-api
+<p>It is based on the public TfL BikePoint API and references the following GitHub repository:<br>
+<a href="https://github.com/harveyjoyce/bikepoint-api">https://github.com/harveyjoyce/bikepoint-api</a></p>
 
----
+<hr>
 
-## Features
+<h2>Features</h2>
+<ul>
+  <li>Fetches real-time BikePoint data from TfL</li>
+  <li>Automatic retry logic for failed API requests</li>
+  <li>Saves API responses as timestamped JSON files</li>
+  <li>Generates structured log files for monitoring and debugging</li>
+  <li>Automatically creates required directories (<code>data/</code> and <code>logs/</code>)</li>
+  <li><strong>Optional:</strong> Uploads JSON files to AWS S3 and deletes local copies after successful upload</li>
+</ul>
 
-- Fetches real-time BikePoint data from TfL  
-- Automatic retry logic for failed API requests  
-- Saves API responses as timestamped JSON files  
-- Generates structured log files for monitoring and debugging  
-- Automatically creates required directories (`data/` and `logs/`)  
+<hr>
 
----
-
-## Project Structure
-
-```
-.
+<h2>Project Structure</h2>
+<pre><code>.
 ├── data/
 │   └── YYYY-MM-DD HH-MM-SS.json
 ├── logs/
 │   └── YYYY-MM-DD HH-MM-SS.log
+├── load_logs/
+│   └── YYYY-MM-DD HH-MM-SS.log
 ├── extract_bike_points.py
+├── load_bike_points.py
 └── README.md
-```
+</code></pre>
 
----
+<hr>
 
-## Requirements
+<h2>Requirements</h2>
+<ul>
+  <li>Python 3.8+</li>
+  <li>Internet connection</li>
+  <li>AWS account and S3 bucket (for <code>load_bike_points.py</code>)</li>
+</ul>
 
-- Python 3.8+
-- Internet connection
+<h3>Python Dependencies</h3>
+<pre><code>pip install requests boto3 python-dotenv</code></pre>
+<p>(Standard library modules used: <code>os</code>, <code>json</code>, <code>datetime</code>, <code>time</code>, <code>logging</code>, <code>pathlib</code>)</p>
 
-### Python Dependencies
+<hr>
 
-Install required packages using:
+<h2>Environment Variables (for S3 Upload)</h2>
+<p>Create a <code>.env</code> file in the project root directory:</p>
+<pre><code>aws_access_key_id=YOUR_AWS_ACCESS_KEY_ID
+aws_secret_access_key=YOUR_AWS_SECRET_ACCESS_KEY
+bucket_name=YOUR_S3_BUCKET_NAME</code></pre>
+<p><code>extract_bike_points.py</code> does not require credentials. <code>load_bike_points.py</code> uses these AWS credentials for authentication.</p>
 
-```
-pip install requests
-```
+<hr>
 
-(Standard library modules used: `os`, `json`, `datetime`, `time`, `logging`)
+<h2>How It Works</h2>
 
----
+<h3>Script A – Download BikePoint Data (<code>extract_bike_points.py</code>)</h3>
+<ol>
+  <li>Sends a GET request to the TfL BikePoint API: <code>https://api.tfl.gov.uk/BikePoint</code></li>
+  <li>Retries the request up to <strong>3 times</strong> if an unsuccessful response is received</li>
+  <li>On success:
+    <ul>
+      <li>Saves the response as a JSON file in the <code>data/</code> directory</li>
+      <li>Creates a timestamped log file in the <code>logs/</code> directory</li>
+    </ul>
+  </li>
+  <li>Logs system activity at INFO level and above</li>
+</ol>
 
-## How It Works
+<h3>Script B – Upload JSON to S3 (<code>load_bike_points.py</code>)</h3>
+<ol>
+  <li>Loads AWS credentials from <code>.env</code></li>
+  <li>Searches for all JSON files in the <code>data/</code> directory</li>
+  <li>Raises an error if no files are found</li>
+  <li>Uploads each JSON file to the specified S3 bucket</li>
+  <li>Deletes local JSON files after a successful upload</li>
+  <li>Logs all upload actions and errors to timestamped files in <code>load_logs/</code></li>
+</ol>
 
-1. Sends a GET request to the TfL BikePoint API:
-   ```
-   https://api.tfl.gov.uk/BikePoint
-   ```
-2. Retries the request up to **3 times** if an unsuccessful response is received.
-3. On success:
-   - Saves the response as a JSON file in the `data/` directory
-   - Creates a timestamped log file in the `logs/` directory
-4. Logs system activity at INFO level and above.
+<hr>
 
----
+<h2>Logging</h2>
+<p>Each script execution creates a log file containing:</p>
+<ul>
+  <li>System status messages</li>
+  <li>Successful downloads/uploads</li>
+  <li>Warnings and errors</li>
+  <li>Critical failures</li>
+</ul>
 
-## Logging
+<p>Example log entry:</p>
+<pre><code>2026-01-07 12:30:01 - INFO - Download successful at 2026-01-07 12-30-01 😊
+2026-01-07 12:35:15 - INFO - Uploaded and deleted: 2026-01-07 12-30-01.json
+</code></pre>
 
-Each script execution creates a log file containing:
+<hr>
 
-- System status messages
-- Successful downloads
-- Warnings and errors
-- Critical failures
+<h2>Usage</h2>
 
-Example log entry:
+<h3>Download BikePoint Data</h3>
+<pre><code>python extract_bike_points.py</code></pre>
+<p>On successful execution:</p>
+<ul>
+  <li>A JSON file will be saved in the <code>data/</code> folder</li>
+  <li>A log file will be saved in the <code>logs/</code> folder</li>
+  <li>A success message will be printed to the console</li>
+</ul>
 
-```
-2026-01-07 12:30:01 - INFO - Download successful at 2026-01-07 12-30-01 😊
-```
+<h3>Upload JSON Files to S3</h3>
+<pre><code>python load_bike_points.py</code></pre>
+<p>On successful execution:</p>
+<ul>
+  <li>JSON files will be uploaded to your S3 bucket</li>
+  <li>Local copies of the files will be deleted</li>
+  <li>A log file will be saved in the <code>load_logs/</code> folder</li>
+</ul>
 
----
+<hr>
 
-## Usage
+<h2>API Reference</h2>
+<p>TfL BikePoint API documentation:<br>
+<a href="https://api.tfl.gov.uk/swagger/ui/#!/BikePoint/BikePoint_GetAll">https://api.tfl.gov.uk/swagger/ui/#!/BikePoint/BikePoint_GetAll</a></p>
 
-Run the script with:
+<hr>
 
-```
-python extract_bike_points.py
-```
+<h2>Error Handling</h2>
+<ul>
+  <li>HTTP status codes outside the successful range trigger a retry</li>
+  <li>Requests time out after 10 seconds</li>
+  <li>All errors are logged for troubleshooting</li>
+  <li>S3 upload errors are logged, and execution stops if no JSON files are found</li>
+</ul>
 
-On successful execution:
-- A JSON file will be saved in the `data/` folder
-- A log file will be saved in the `logs/` folder
-- A success message will be printed to the console
+<hr>
 
----
+<h2>Future Improvements</h2>
+<ul>
+  <li>Add environment variable support for TfL API credentials</li>
+  <li>Schedule automated runs using cron or Task Scheduler</li>
+  <li>Store data in CSV format or a database</li>
+  <li>Add unit tests and CI/CD integration</li>
+  <li>Add notification system on upload failures</li>
+</ul>
 
-## API Reference
+<hr>
 
-TfL BikePoint API documentation:  
-https://api.tfl.gov.uk/swagger/ui/#!/BikePoint/BikePoint_GetAll
-
----
-
-## Error Handling
-
-- HTTP status codes outside the successful range trigger a retry
-- Requests time out after 10 seconds
-- All errors are logged for troubleshooting
-
----
-
-## Future Improvements
-
-- Add environment variable support for API credentials
-- Schedule automated runs using cron or Task Scheduler
-- Store data in CSV format or a database
-- Add unit tests and CI/CD integration
-
----
-
-## License
-
-This project uses public TfL API data and is intended for educational and non-commercial use.  
-Please refer to TfL’s API terms and conditions for usage guidelines.
-```
-
+<h2>License</h2>
+<p>This project uses public TfL API data and is intended for educational and non-commercial use.<br>
+Please refer to TfL’s API terms and conditions for usage guidelines.</p>
